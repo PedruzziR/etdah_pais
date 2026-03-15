@@ -291,12 +291,12 @@ else:
 
     with st.form("formulario_avaliacao"):
         st.subheader("Dados da Criança/Adolescente")
-        nome_crianca = st.text_input("Nome completo *")
+        nome_crianca = st.text_input("Nome completo da Criança/Adolescente *")
         data_nascimento = st.date_input("Data de nascimento *", format="DD/MM/YYYY", min_value=datetime(2005, 1, 1), max_value=datetime.today())
         sexo_crianca = st.selectbox("Sexo *", ["Selecione...", "Masculino", "Feminino"])
         
         st.subheader("Dados do Respondente")
-        nome_resp = st.text_input("Nome completo *")
+        nome_resp = st.text_input("Nome completo do Respondente *")
         parentesco = st.text_input("Parentesco (Mãe, Pai, Avó, etc.) *")
         cpf_resp = st.text_input("CPF *", value=st.session_state.cpf_paciente, disabled=True)
         st.divider()

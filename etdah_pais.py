@@ -224,6 +224,71 @@ else:
     st.write("Abaixo estão alguns itens que descrevem comportamentos que seu filho ou sua filha pode apresentar. Considere a frequência desses comportamentos no momento atual e nos últimos seis meses.")
     st.divider()
 
+    perguntas = [
+        # FATOR 1 – REGULAÇÃO EMOCIONAL
+        "Faz amizade, mas não consegue mantê-la",
+        "Implica com tudo",
+        "Tem fortes reações emocionais (explosões de raiva)",
+        "É irritadiço (tudo o incomoda)",
+        "Muda facilmente de humor",
+        "Explode com facilidade (é do tipo “pavio curto”)",
+        "Dá a impressão de estar sempre insatisfeito (nada o agrada)",
+        "É rebelde (não aceita nada)",
+        "É agressivo",
+        "Sente-se infeliz",
+        "Faz birra quando quer algo",
+        "Mostra-se tenso e rígido",
+        "Implica com os irmãos",
+        "As atividades e reuniões são desagradáveis",
+        "Todos têm que fazer o que ele quer",
+        "A hora de acordar e das refeições é desagradável",
+        "Exige mais tempo e atenção dos pais do que os outros filhos",
+        "Tem dificuldades para se adaptar às mudanças",
+        "É sensível",
+        # FATOR 2 - HIPERATIVIDADE / IMPULSIVIDADE
+        "Movimenta-se muito (parece estar ligado com um motor ou a todo vapor)",
+        "É inquieto e agitado",
+        "Mexe-se e contorce-se durante as refeições e para realizar as tarefas de casa",
+        "Tem sempre muita pressa",
+        "Age sem pensar (é impulsivo)",
+        "É inconsequente (não considera os perigos da situação)",
+        "Intromete-se em assuntos que não lhe dizem respeito",
+        "Responde antes de ouvir a pergunta inteira",
+        "É imprudente",
+        "Irrita os outros com suas palhaçadas",
+        "Tende a discordar com as regras e normas de jogos",
+        "É persistente e insiste diante de uma ideia",
+        "Faz os deveres escolares rápido demais. Implica com os irmãos",
+        # FATOR 3 - COMPORTAMENTO ADAPTATIVO
+        "Aceita facilmente regras, normas e limites",
+        "Parece ser uma criança tranquila e sossegada",
+        "É tolerante, quando preciso",
+        "Respeita normas e regras",
+        "É obediente",
+        "Obedece aos pais e as normas da casa",
+        "Sabe aguardar sua vez (é paciente)",
+        "Faz suas tarefas e almoça com bastante tranquilidade",
+        "Faz as coisas com muito cuidado, provendo todos os riscos de suas ações",
+        "Seu comportamento é adequado socialmente",
+        "Fala pouco",
+        "A criança permite que o ambiente familiar seja tranquilo e harmonioso",
+        "Consegue expressar claramente os seus pensamentos",
+        "É atento quando conversa com alguém",
+        # FATOR 4 - DESATENÇÃO
+        "É independente para realizar as suas tarefas de casa",
+        "É distraído com quase tudo",
+        "Evita atividades que exigem esforço mental constante (deveres escolares, jogos)",
+        "Esquece rápido o que acabou de ser dito",
+        "Inicia uma atividade com entusiasmo e dificilmente chega ao final (é do tipo fogo de palha)",
+        "Tem dificuldade para realizar as coisas importantes (lição, por exemplo)",
+        "Não termina o que começa",
+        "Parece sonhar acordado (estar no mundo da lua)",
+        "Mostra-se concentrado apenas em atividades de seu interesse",
+        "Dá a impressão de que não ouve bem (só escuta o que quer)",
+        "Dificilmente observa detalhes",
+        "Ocorrem discussões entre os pais e a criança, em função da falta de responsabilidade e da falta de senso de dever"
+    ]
+
     with st.form("formulario_avaliacao"):
         st.subheader("Dados da Criança/Adolescente")
         nome_crianca = st.text_input("Nome da criança/adolescente *")
@@ -238,15 +303,16 @@ else:
 
         respostas_coletadas = {}
 
-        # Gerador contínuo das 58 questões
-        for i in range(1, 59):
-            st.write(f"**Questão {i}**")
-            resposta = st.radio(f"Oculto {i}", list(opcoes_respostas.keys()), index=None, label_visibility="collapsed", key=f"q_{i}")
+        # Mapeando e exibindo as perguntas exatas na tela
+        for index, texto_pergunta in enumerate(perguntas):
+            num_q = index + 1
+            st.write(f"**{num_q}. {texto_pergunta}**")
+            resposta = st.radio(f"Oculto {num_q}", list(opcoes_respostas.keys()), index=None, label_visibility="collapsed", key=f"q_{num_q}")
 
             if resposta is not None:
-                respostas_coletadas[i] = opcoes_respostas[resposta]
+                respostas_coletadas[num_q] = opcoes_respostas[resposta]
             else:
-                respostas_coletadas[i] = None
+                respostas_coletadas[num_q] = None
             st.write("---")
 
         botao_enviar = st.form_submit_button("Finalizar Avaliação")

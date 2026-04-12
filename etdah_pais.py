@@ -5,7 +5,7 @@ from email.mime.multipart import MIMEMultipart
 import json
 import gspread
 from google.oauth2.service_account import Credentials
-from datetime import datetime
+import datetime
 
 # ================= CONFIGURAÇÕES DE E-MAIL =================
 SEU_EMAIL = st.secrets["EMAIL_USUARIO"]
@@ -22,29 +22,30 @@ def conectar_planilha():
     ]
     creds = Credentials.from_service_account_info(creds_dict, scopes=escopos)
     client = gspread.authorize(creds)
-    return client.open("ETDAH-PAIS").sheet1  # PLANILHA "ETDAH-PAIS" NO DRIVE
+    # CONECTA À PLANILHA CENTRAL DE TOKENS
+    return client.open("Controle_Tokens").sheet1 
 
 try:
     planilha = conectar_planilha()
 except Exception as e:
-    st.error(f"Erro de conexão: {e}")
+    st.error(f"Erro de conexão com a planilha de controle: {e}")
     st.stop()
 # =============================================================
 
-def enviar_email_resultados(nome, cpf, data_nasc, idade, sexo, nome_resp, parentesco, resultados_processados):
-    assunto = f"Resultados ETDAH-Pais - Criança: {nome}"
+def enviar_email_resultados(nome, token, data_nasc, idade, sexo, nome_resp, parentesco, resultados_processados):
+    assunto = f"Resultados ETDAH-Pais - Paciente: {nome}"
     
     corpo = f"Avaliação ETDAH-Pais concluída.\n\n"
-    corpo += f"=== DADOS DA CRIANÇA/ADOLESCENTE ===\n"
+    corpo += f"=== DADOS DO(A) PACIENTE ===\n"
     corpo += f"Nome: {nome}\n"
-    corpo += f"CPF (Login): {cpf}\n"
     corpo += f"Data de Nascimento: {data_nasc}\n"
     corpo += f"Idade Calculada: {idade} anos\n"
-    corpo += f"Sexo: {sexo}\n\n"
+    corpo += f"Sexo: {sexo}\n"
+    corpo += f"Token de Validação: {token}\n\n"
     
-    corpo += f"=== DADOS DO RESPONDENTE ===\n"
+    corpo += f"=== DADOS DO(A) RESPONDENTE ===\n"
     corpo += f"Nome: {nome_resp}\n"
-    corpo += f"Parentesco: {parentesco}\n\n"
+    corpo += f"Vínculo: {parentesco}\n\n"
     
     corpo += "================ RESULTADOS ================\n\n"
 
@@ -67,16 +68,10 @@ def enviar_email_resultados(nome, cpf, data_nasc, idade, sexo, nome_resp, parent
         server.send_message(msg)
         server.quit()
         return True
-    except Exception as e:
+    except:
         return False
 
-# 1. Estrutura de Correção e Fatores
-fator1_qs = list(range(1, 20))  # Questões 1 a 19
-fator2_qs = list(range(20, 33)) # Questões 20 a 32
-fator3_qs = list(range(33, 47)) # Questões 33 a 46 (Totalmente Invertido)
-fator4_qs = list(range(47, 59)) # Questões 47 a 58 (Apenas a Q47 Invertida)
-
-# 2. Tabelas Normativas Dinâmicas
+# TABELAS NORMATIVAS (MANTIDAS CONFORME ORIGINAL)
 tabelas_normativas = {
     'Feminino': {
         '10_13': {
@@ -114,7 +109,7 @@ tabelas_normativas = {
             'Desatenção': [(15.0, 1), (16.3, 5), (19.6, 10), (21.0, 15), (22.6, 20), (27.5, 25), (28.0, 30), (29.1, 35), (30.0, 40), (31.0, 45), (36.0, 50), (36.0, 55), (37.2, 60), (39.9, 65), (42.0, 70), (42.5, 75), (43.0, 80), (49.0, 85), (50.4, 90), (62.2, 95)],
             'Escore Geral': [(104.0, 1), (104.9, 5), (120.6, 10), (127.3, 15), (134.2, 20), (148.0, 25), (149.8, 30), (153.1, 35), (155.6, 40), (163.1, 45), (165.0, 50), (168.5, 55), (175.6, 60), (186.3, 65), (195.0, 70), (207.0, 75), (222.8, 80), (235.0, 85), (247.8, 90), (258.1, 95)],
             'Hiperatividade/Impulsividade': [(15.0, 1), (21.0, 5), (24.8, 10), (26.9, 15), (28.0, 20), (28.5, 25), (30.0, 30), (32.0, 35), (35.0, 40), (35.0, 45), (36.0, 50), (39.3, 55), (40.0, 60), (41.0, 65), (41.2, 70), (43.5, 75), (51.2, 80), (56.3, 85), (66.4, 90), (68.4, 95)],
-            'Regulação Emocional': [(25.0, 1), (25.0, 5), (26.3, 10), (29.2, 15), (30.9, 20), (32.2, 25), (34.0, 30), (34.8, 35), (36.1, 40), (39.2, 45), (42.0, 50), (43.0, 55), (47.6, 60), (50.0, 65), (51.0, 70), (55.2, 75), (60.0, 80), (61.0, 85), (69.0, 90), (78.0, 95), (86.1, 99)]
+            'Regulação Emocional': [(25.0, 1), (25.0, 5), (26.3, 10), (29.2, 15), (30.9, 20), (32.2, 25), (34.0, 30), (34.8, 35), (36.1, 40), (39.2, 45), (42.0, 50), (43.0, 55), (47.6, 60), (50.0, 65), (51.0, 70), (55.2, 75), (60.0, 80), (61.0, 85), (69.0, 90), (78.0, 95)]
         },
         '14_17': {
             'Comportamento Adaptativo': [(20.0, 1), (20.6, 5), (32.2, 10), (34.0, 15), (34.0, 20), (35.25, 25), (39.3, 30), (41.05, 35), (43.0, 40), (43.0, 45), (46.5, 50), (51.1, 55), (52.6, 60), (53.0, 65), (53.0, 70), (53.0, 75), (53.8, 80), (59.1, 85), (60.9, 90), (65.75, 95)],
@@ -145,7 +140,7 @@ def obter_faixa_etaria(idade):
     elif 6 <= idade <= 9: return "6_9"
     elif 10 <= idade <= 13: return "10_13"
     elif 14 <= idade <= 17: return "14_17"
-    else: return None
+    return None
 
 def obter_classificacao(percentil):
     if percentil <= 20: return "Inferior"
@@ -156,15 +151,13 @@ def obter_classificacao(percentil):
 
 def cruzar_dados_normativos(fator, pontuacao_bruta, sexo, faixa_etaria):
     tabela = tabelas_normativas[sexo][faixa_etaria][fator]
-    percentil_encontrado = tabela[0][1] 
+    percentil_encontrado = tabela[0][1]
     for score_tabela, perc in tabela:
         if pontuacao_bruta >= score_tabela:
             percentil_encontrado = perc
-        else: break 
-    classificacao = obter_classificacao(percentil_encontrado)
-    return percentil_encontrado, classificacao
+        else: break
+    return percentil_encontrado, obter_classificacao(percentil_encontrado)
 
-# 3. Opções de Respostas
 opcoes_respostas = {
     "1 - Nunca": 1,
     "2 - Muito pouco": 2,
@@ -174,207 +167,142 @@ opcoes_respostas = {
     "6 - Muito frequentemente": 6
 }
 
-# 4. Interface Visual
 st.set_page_config(page_title="Avaliação ETDAH-Pais", layout="centered")
 
-if "logado" not in st.session_state:
-    st.session_state.logado = False
-if "cpf_paciente" not in st.session_state:
-    st.session_state.cpf_paciente = ""
+# CSS para o Botão Azul Forçado
+st.markdown("""
+    <style>
+    div[data-testid="stFormSubmitButton"] > button {
+        background-color: #0047AB !important;
+        color: white !important;
+        border: none !important;
+        padding: 0.6rem 2.5rem !important;
+        border-radius: 8px !important;
+        font-weight: bold !important;
+        font-size: 16px !important;
+    }
+    div[data-testid="stFormSubmitButton"] > button:hover {
+        background-color: #003380 !important;
+        color: white !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 if "avaliacao_concluida" not in st.session_state:
     st.session_state.avaliacao_concluida = False
 
-st.title("Clínica de Psicologia e Psicanálise Bruna Ligoski")
+# Título Centralizado
+st.markdown("<h1 style='text-align: center;'>Clínica de Psicologia e Psicanálise Bruna Ligoski</h1>", unsafe_allow_html=True)
 
-# ================= TELA DE LOGIN =================
-if not st.session_state.logado:
-    st.write("Bem-vindo(a) à Avaliação ETDAH-Pais.")
-    
-    with st.form("form_login"):
-        cpf_input = st.text_input("CPF do Responsável (Login de Acesso - Apenas números)")
-        senha_input = st.text_input("Senha de Acesso", type="password")
-        botao_entrar = st.form_submit_button("Acessar Avaliação")
-        
-        if botao_entrar:
-            if not cpf_input:
-                st.error("Por favor, preencha o seu CPF.")
-            elif senha_input != st.secrets["SENHA_MESTRA"]:
-                st.error("Senha incorreta.")
-            else:
-                try:
-                    cpfs_registrados = planilha.col_values(1)
-                except:
-                    cpfs_registrados = []
-                    
-                if cpf_input in cpfs_registrados:
-                    st.error("Acesso bloqueado. Este CPF já consta em nossa base de dados.")
-                else:
-                    st.session_state.logado = True
-                    st.session_state.cpf_paciente = cpf_input
-                    st.session_state.avaliacao_concluida = False
-                    st.rerun()
+if st.session_state.avaliacao_concluida:
+    st.success("Avaliação concluída e enviada com sucesso! Muito obrigado(a) pela sua colaboração.")
+    st.stop()
 
-# ================= TELA FINAL =================
-elif st.session_state.avaliacao_concluida:
-    st.success("Avaliação concluída e enviada com sucesso! Muito obrigado pela sua colaboração.")
+# ================= VALIDAÇÃO SILENCIOSA DO TOKEN =================
+parametros = st.query_params
+token_url = parametros.get("token", None)
+
+if not token_url:
+    st.warning("⚠️ Link de acesso inválido. Solicite um novo link à profissional.")
+    st.stop()
+
+try:
+    registros = planilha.get_all_records()
+    dados_token = None
+    linha_alvo = 2 
+    for i, reg in enumerate(registros):
+        if str(reg.get("Token")) == token_url:
+            dados_token = reg
+            linha_alvo += i
+            break
+            
+    if not dados_token or dados_token.get("Status") != "Aberto":
+        st.error("⚠️ Este link é inválido ou já foi utilizado.")
+        st.stop()
+except Exception:
+    st.error("Erro técnico na validação do link.")
+    st.stop()
 
 # ================= QUESTIONÁRIO ETDAH-PAIS =================
-else:
-    st.write("### ETDAH-Pais")
-    st.write("Abaixo estão alguns itens que descrevem comportamentos que seu filho ou sua filha pode apresentar. Considere a frequência desses comportamentos no momento atual e nos últimos seis meses.")
+linha_fina = "<hr style='margin-top: 8px; margin-bottom: 8px;'/>"
+st.markdown(linha_fina, unsafe_allow_html=True)
+st.markdown("<h3 style='text-align: center;'>Escala ETDAH-Pais</h3>", unsafe_allow_html=True)
+st.markdown(linha_fina, unsafe_allow_html=True)
+
+st.write("Abaixo estão alguns itens que descrevem comportamentos que o(a) paciente pode apresentar. Considere a frequência atual e nos últimos seis meses.")
+st.markdown(linha_fina, unsafe_allow_html=True)
+
+perguntas = [
+    # FATOR 1 – REGULAÇÃO EMOCIONAL (1-19)
+    "Faz amizade, mas não consegue mantê-la", "Implica com tudo", "Tem fortes reações emocionais (explosões de raiva)", "É irritadiço(a) (tudo o incomoda)", "Muda facilmente de humor", "Explode com facilidade (é do tipo “pavio curto”)", "Dá a impressão de estar sempre insatisfeito(a) (nada o(a) agrada)", "É rebelde (não aceita nada)", "É agressivo(a)", "Sente-se infeliz", "Faz birra quando quer algo", "Mostra-se tenso(a) e rígido(a)", "Implica com os irmãos", "As atividades e reuniões são desagradáveis", "Todos têm que fazer o que ele(a) quer", "A hora de acordar e das refeições é desagradável", "Exige mais tempo e atenção dos responsáveis do que outros familiares", "Tem dificuldades para se adaptar às mudanças", "É sensível",
+    # FATOR 2 - HIPERATIVIDADE / IMPULSIVIDADE (20-32)
+    "Movimenta-se muito (parece estar ligado(a) com um motor ou a todo vapor)", "É inquieto(a) e agitado(a)", "Mexe-se e contorce-se durante as refeições e para realizar as tarefas de casa", "Tem sempre muita pressa", "Age sem pensar (é impulsivo/a)", "É inconsequente (não considera os perigos da situação)", "Intromete-se em assuntos que não lhe dizem respeito", "Responde antes de ouvir a pergunta inteira", "É imprudente", "Irrita os outros com suas palhaçadas", "Tende a discordar com as regras e normas de jogos", "É persistente e insiste diante de uma ideia", "Faz os deveres escolares rápido demais",
+    # FATOR 3 - COMPORTAMENTO ADAPTATIVO (33-46)
+    "Aceita facilmente regras, normas e limites", "Parece ser uma pessoa tranquila e sossegada", "É tolerante, quando preciso", "Respeita normas e regras", "É obediente", "Obedece aos pais/responsáveis e as normas da casa", "Sabe aguardar sua vez (é paciente)", "Faz suas tarefas e almoça com bastante tranquilidade", "Faz as coisas com muito cuidado, prevendo os riscos de suas ações", "Seu comportamento é adequado socialmente", "Fala pouco", "O(a) paciente permite que o ambiente familiar seja tranquilo e harmonioso", "Consegue expressar claramente os seus pensamentos", "É atento(a) quando conversa com alguém",
+    # FATOR 4 - DESATENÇÃO (47-58)
+    "É independente para realizar as suas tarefas de casa", "É distraído(a) com quase tudo", "Evita atividades que exigem esforço mental constante (deveres escolares, jogos)", "Esquece rápido o que acabou de ser dito", "Inicia uma atividade com entusiasmo e dificilmente chega ao final", "Tem dificuldade para realizar as coisas importantes (lição, por exemplo)", "Não termina o que começa", "Parece sonhar acordado(a) (estar no mundo da lua)", "Mostra-se concentrado(a) apenas em atividades de seu interesse", "Dá a impressão de que não ouve bem (só escuta o que quer)", "Dificilmente observa detalhes", "Ocorrem discussões entre os responsáveis e o(a) paciente em função da falta de responsabilidade"
+]
+
+with st.form("form_etdah_pais"):
+    st.subheader("Dados do(a) Paciente")
+    nome_paciente = st.text_input("Nome completo do(a) paciente *")
+    data_nascimento = st.date_input("Data de nascimento *", format="DD/MM/YYYY", min_value=datetime.date(1900, 1, 1), max_value=datetime.date.today(), value=None)
+    sexo_paciente = st.selectbox("Sexo *", ["Selecione", "Masculino", "Feminino"])
+    
+    st.divider()
+    st.subheader("Dados do(a) Respondente")
+    nome_resp = st.text_input("Nome completo do(a) respondente *")
+    parentesco = st.text_input("Vínculo / Parentesco (Mãe, Pai, Avó, etc.) *")
     st.divider()
 
-    perguntas = [
-        # FATOR 1 – REGULAÇÃO EMOCIONAL
-        "Faz amizade, mas não consegue mantê-la",
-        "Implica com tudo",
-        "Tem fortes reações emocionais (explosões de raiva)",
-        "É irritadiço (tudo o incomoda)",
-        "Muda facilmente de humor",
-        "Explode com facilidade (é do tipo “pavio curto”)",
-        "Dá a impressão de estar sempre insatisfeito (nada o agrada)",
-        "É rebelde (não aceita nada)",
-        "É agressivo",
-        "Sente-se infeliz",
-        "Faz birra quando quer algo",
-        "Mostra-se tenso e rígido",
-        "Implica com os irmãos",
-        "As atividades e reuniões são desagradáveis",
-        "Todos têm que fazer o que ele quer",
-        "A hora de acordar e das refeições é desagradável",
-        "Exige mais tempo e atenção dos pais do que os outros filhos",
-        "Tem dificuldades para se adaptar às mudanças",
-        "É sensível",
-        # FATOR 2 - HIPERATIVIDADE / IMPULSIVIDADE
-        "Movimenta-se muito (parece estar ligado com um motor ou a todo vapor)",
-        "É inquieto e agitado",
-        "Mexe-se e contorce-se durante as refeições e para realizar as tarefas de casa",
-        "Tem sempre muita pressa",
-        "Age sem pensar (é impulsivo)",
-        "É inconsequente (não considera os perigos da situação)",
-        "Intromete-se em assuntos que não lhe dizem respeito",
-        "Responde antes de ouvir a pergunta inteira",
-        "É imprudente",
-        "Irrita os outros com suas palhaçadas",
-        "Tende a discordar com as regras e normas de jogos",
-        "É persistente e insiste diante de uma ideia",
-        "Faz os deveres escolares rápido demais. Implica com os irmãos",
-        # FATOR 3 - COMPORTAMENTO ADAPTATIVO
-        "Aceita facilmente regras, normas e limites",
-        "Parece ser uma criança tranquila e sossegada",
-        "É tolerante, quando preciso",
-        "Respeita normas e regras",
-        "É obediente",
-        "Obedece aos pais e as normas da casa",
-        "Sabe aguardar sua vez (é paciente)",
-        "Faz suas tarefas e almoça com bastante tranquilidade",
-        "Faz as coisas com muito cuidado, provendo todos os riscos de suas ações",
-        "Seu comportamento é adequado socialmente",
-        "Fala pouco",
-        "A criança permite que o ambiente familiar seja tranquilo e harmonioso",
-        "Consegue expressar claramente os seus pensamentos",
-        "É atento quando conversa com alguém",
-        # FATOR 4 - DESATENÇÃO
-        "É independente para realizar as suas tarefas de casa",
-        "É distraído com quase tudo",
-        "Evita atividades que exigem esforço mental constante (deveres escolares, jogos)",
-        "Esquece rápido o que acabou de ser dito",
-        "Inicia uma atividade com entusiasmo e dificilmente chega ao final (é do tipo fogo de palha)",
-        "Tem dificuldade para realizar as coisas importantes (lição, por exemplo)",
-        "Não termina o que começa",
-        "Parece sonhar acordado (estar no mundo da lua)",
-        "Mostra-se concentrado apenas em atividades de seu interesse",
-        "Dá a impressão de que não ouve bem (só escuta o que quer)",
-        "Dificilmente observa detalhes",
-        "Ocorrem discussões entre os pais e a criança, em função da falta de responsabilidade e da falta de senso de dever"
-    ]
-
-    with st.form("formulario_avaliacao"):
-        st.subheader("Dados da Criança/Adolescente")
-        nome_crianca = st.text_input("Nome completo da Criança/Adolescente *")
-        data_nascimento = st.date_input("Data de nascimento *", format="DD/MM/YYYY", min_value=datetime(2005, 1, 1), max_value=datetime.today())
-        sexo_crianca = st.selectbox("Sexo *", ["Selecione...", "Masculino", "Feminino"])
-        
-        st.subheader("Dados do Respondente")
-        nome_resp = st.text_input("Nome completo do Respondente *")
-        parentesco = st.text_input("Parentesco (Mãe, Pai, Avó, etc.) *")
-        cpf_resp = st.text_input("CPF *", value=st.session_state.cpf_paciente, disabled=True)
+    respostas_usuario = {}
+    for index, texto_pergunta in enumerate(perguntas):
+        num_q = index + 1
+        st.write(f"**{num_q}. {texto_pergunta}**")
+        respostas_usuario[num_q] = st.radio(f"q_{num_q}", list(opcoes_respostas.keys()), index=None, label_visibility="collapsed")
         st.divider()
 
-        respostas_coletadas = {}
+    if st.form_submit_button("Enviar Avaliação"):
+        hoje = datetime.date.today()
+        questoes_em_branco = [q for q, r in respostas_usuario.items() if r is None]
 
-        # Mapeando e exibindo as perguntas exatas na tela
-        for index, texto_pergunta in enumerate(perguntas):
-            num_q = index + 1
-            st.write(f"**{num_q}. {texto_pergunta}**")
-            resposta = st.radio(f"Oculto {num_q}", list(opcoes_respostas.keys()), index=None, label_visibility="collapsed", key=f"q_{num_q}")
-
-            if resposta is not None:
-                respostas_coletadas[num_q] = opcoes_respostas[resposta]
-            else:
-                respostas_coletadas[num_q] = None
-            st.write("---")
-
-        botao_enviar = st.form_submit_button("Finalizar Avaliação")
-
-    # 5. Processamento e Envio
-    if botao_enviar:
-        # Cálculo da idade exata
-        hoje = datetime.today().date()
-        idade_calculada = hoje.year - data_nascimento.year - ((hoje.month, hoje.day) < (data_nascimento.month, data_nascimento.day))
-        faixa_etaria = obter_faixa_etaria(idade_calculada)
-
-        questoes_em_branco = [q for q, r in respostas_coletadas.items() if r is None]
-
-        if not nome_crianca or not nome_resp or not parentesco or sexo_crianca == "Selecione...":
-            st.error("Por favor, preencha todos os dados de identificação.")
-        elif faixa_etaria is None:
-            st.error(f"A criança possui {idade_calculada} anos. O ETDAH-Pais possui tabelas apenas para idades de 2 a 17 anos.")
+        if not nome_paciente or not nome_resp or not parentesco or sexo_paciente == "Selecione" or data_nascimento is None:
+            st.error("Por favor, preencha todos os campos de identificação.")
         elif questoes_em_branco:
-            st.error(f"Por favor, responda todas as perguntas. Falta responder {len(questoes_em_branco)} questão(ões).")
+            st.error(f"Por favor, responda todas as perguntas. Faltam {len(questoes_em_branco)} questão(ões).")
         else:
-            escores = {
-                "Regulação Emocional": 0,
-                "Hiperatividade/Impulsividade": 0,
-                "Comportamento Adaptativo": 0,
-                "Desatenção": 0,
-                "Escore Geral": 0
-            }
+            idade = hoje.year - data_nascimento.year - ((hoje.month, hoje.day) < (data_nascimento.month, data_nascimento.day))
+            faixa_etaria = obter_faixa_etaria(idade)
 
-            # Cálculo de Pontos (com inversão automática)
-            for num_q, valor_resposta in respostas_coletadas.items():
-                if num_q in fator3_qs or num_q == 47:
-                    pontuacao_final = 7 - valor_resposta
-                else:
-                    pontuacao_final = valor_resposta
+            if faixa_etaria is None:
+                st.error(f"O(a) paciente possui {idade} anos. Escala válida de 2 a 17 anos.")
+            else:
+                # Fatores e Cálculo
+                f1_qs = range(1, 20); f2_qs = range(20, 33); f3_qs = range(33, 47); f4_qs = range(47, 59)
+                escores = {"Regulação Emocional": 0, "Hiperatividade/Impulsividade": 0, "Comportamento Adaptativo": 0, "Desatenção": 0, "Escore Geral": 0}
 
-                if num_q in fator1_qs: escores["Regulação Emocional"] += pontuacao_final
-                elif num_q in fator2_qs: escores["Hiperatividade/Impulsividade"] += pontuacao_final
-                elif num_q in fator3_qs: escores["Comportamento Adaptativo"] += pontuacao_final
-                elif num_q in fator4_qs: escores["Desatenção"] += pontuacao_final
-                
-                escores["Escore Geral"] += pontuacao_final
+                for n, r in respostas_usuario.items():
+                    val = opcoes_respostas[r]
+                    # Inversão Fator 3 e Q47
+                    ponto = (7 - val) if (n in f3_qs or n == 47) else val
+                    
+                    if n in f1_qs: escores["Regulação Emocional"] += ponto
+                    elif n in f2_qs: escores["Hiperatividade/Impulsividade"] += ponto
+                    elif n in f3_qs: escores["Comportamento Adaptativo"] += ponto
+                    elif n in f4_qs: escores["Desatenção"] += ponto
+                    escores["Escore Geral"] += ponto
 
-            # Cruzamento Estatístico
-            resultados_completos = {}
-            for fator, pontuacao_bruta in escores.items():
-                percentil, classif = cruzar_dados_normativos(fator, pontuacao_bruta, sexo_crianca, faixa_etaria)
-                resultados_completos[fator] = {
-                    "bruto": pontuacao_bruta,
-                    "percentil": percentil,
-                    "classificacao": classif
-                }
+                resultados_completos = {f: cruzar_dados_normativos(f, v, sexo_paciente, faixa_etaria) for f, v in escores.items()}
+                res_dict = {f: {"bruto": escores[f], "percentil": resultados_completos[f][0], "classificacao": resultados_completos[f][1]} for f in escores}
 
-            with st.spinner('Processando os resultados e enviando e-mail...'):
-                data_nasc_formatada = data_nascimento.strftime("%d/%m/%Y")
-                sucesso = enviar_email_resultados(nome_crianca, st.session_state.cpf_paciente, data_nasc_formatada, idade_calculada, sexo_crianca, nome_resp, parentesco, resultados_completos)
-                
-                if sucesso:
-                    try:
-                        planilha.append_row([st.session_state.cpf_paciente])
-                    except:
-                        pass
-                    st.session_state.avaliacao_concluida = True
-                    st.rerun()
-                else:
-                    st.error("Houve um erro no envio. Avise a profissional responsável.")
+                with st.spinner('Enviando resultados...'):
+                    if enviar_email_resultados(nome_paciente, token_url, data_nascimento.strftime("%d/%m/%Y"), idade, sexo_paciente, nome_resp, parentesco, res_dict):
+                        try:
+                            planilha.update_cell(linha_alvo, 5, "Respondido")
+                            st.session_state.avaliacao_concluida = True
+                            st.rerun()
+                        except:
+                            st.session_state.avaliacao_concluida = True
+                            st.rerun()
+                    else:
+                        st.error("Erro ao enviar. Tente novamente.")

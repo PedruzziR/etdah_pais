@@ -7,10 +7,43 @@ import gspread
 from google.oauth2.service_account import Credentials
 import datetime
 
+# ================= BLOCO 1: DEFINIÇÃO DA MARCA D'ÁGUA =================
+def inject_watermark(nome_paciente, id_sessao):
+    paciente_display = nome_paciente if nome_paciente else "PACIENTE NÃO IDENTIFICADO"
+    
+    watermark_style = f"""
+    <style>
+    .watermark {{
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        z-index: 9999;
+        pointer-events: none;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-around;
+        align-content: space-around;
+        opacity: 0.12;
+        user-select: none;
+    }}
+    .watermark-text {{
+        transform: rotate(-45deg);
+        font-size: 22px;
+        font-weight: bold;
+        color: grey;
+        white-space: nowrap;
+        text-align: center;
+        margin: 40px;
+    }}
+    </style>
+    <div class="watermark">
+        {f"<div class='watermark-text'>INSTRUMENTO SIGILOSO<br>{paciente_display}<br>{id_sessao}</div>" * 20}
+    </div>
+    """
+    st.markdown(watermark_style, unsafe_allow_html=True)
+
 # ================= CONFIGURAÇÕES DE E-MAIL =================
 SEU_EMAIL = st.secrets["EMAIL_USUARIO"]
 SENHA_DO_EMAIL = st.secrets["SENHA_USUARIO"]
-# ===========================================================
 
 # ================= CONEXÃO COM GOOGLE SHEETS =================
 @st.cache_resource
@@ -22,7 +55,6 @@ def conectar_planilha():
     ]
     creds = Credentials.from_service_account_info(creds_dict, scopes=escopos)
     client = gspread.authorize(creds)
-    # CONECTA À PLANILHA CENTRAL DE TOKENS
     return client.open("Controle_Tokens").sheet1 
 
 try:
@@ -30,30 +62,16 @@ try:
 except Exception as e:
     st.error(f"Erro de conexão com a planilha de controle: {e}")
     st.stop()
-# =============================================================
 
 def enviar_email_resultados(nome, token, data_nasc, idade, sexo, nome_resp, parentesco, resultados_processados):
     assunto = f"Resultados ETDAH-Pais - Paciente: {nome}"
-    
     corpo = f"Avaliação ETDAH-Pais concluída.\n\n"
-    corpo += f"=== DADOS DO(A) PACIENTE ===\n"
-    corpo += f"Nome: {nome}\n"
-    corpo += f"Data de Nascimento: {data_nasc}\n"
-    corpo += f"Idade Calculada: {idade} anos\n"
-    corpo += f"Sexo: {sexo}\n"
-    corpo += f"Token de Validação: {token}\n\n"
-    
-    corpo += f"=== DADOS DO(A) RESPONDENTE ===\n"
-    corpo += f"Nome: {nome_resp}\n"
-    corpo += f"Vínculo: {parentesco}\n\n"
-    
+    corpo += f"=== DADOS DO(A) PACIENTE ===\nNome: {nome}\nData de Nascimento: {data_nasc}\nIdade Calculada: {idade} anos\nSexo: {sexo}\nToken de Validação: {token}\n\n"
+    corpo += f"=== DADOS DO(A) RESPONDENTE ===\nNome: {nome_resp}\nVínculo: {parentesco}\n\n"
     corpo += "================ RESULTADOS ================\n\n"
 
     for fator, dados in resultados_processados.items():
-        corpo += f"{fator}:\n"
-        corpo += f"  - Escore Bruto: {dados['bruto']}\n"
-        corpo += f"  - Percentil: {dados['percentil']}\n"
-        corpo += f"  - Classificação: {dados['classificacao']}\n\n"
+        corpo += f"{fator}:\n  - Escore Bruto: {dados['bruto']}\n  - Percentil: {dados['percentil']}\n  - Classificação: {dados['classificacao']}\n\n"
 
     msg = MIMEMultipart()
     msg['From'] = SEU_EMAIL
@@ -71,7 +89,7 @@ def enviar_email_resultados(nome, token, data_nasc, idade, sexo, nome_resp, pare
     except:
         return False
 
-# TABELAS NORMATIVAS (MANTIDAS CONFORME ORIGINAL)
+# TABELAS NORMATIVAS (MANTIDAS)
 tabelas_normativas = {
     'Feminino': {
         '10_13': {
@@ -159,31 +177,21 @@ def cruzar_dados_normativos(fator, pontuacao_bruta, sexo, faixa_etaria):
     return percentil_encontrado, obter_classificacao(percentil_encontrado)
 
 opcoes_respostas = {
-    "1 - Nunca": 1,
-    "2 - Muito pouco": 2,
-    "3 - Pouco": 3,
-    "4 - Geralmente": 4,
-    "5 - Frequentemente": 5,
-    "6 - Muito frequentemente": 6
+    "1 - Nunca": 1, "2 - Muito pouco": 2, "3 - Pouco": 3,
+    "4 - Geralmente": 4, "5 - Frequentemente": 5, "6 - Muito frequentemente": 6
 }
 
 st.set_page_config(page_title="Avaliação ETDAH-Pais", layout="centered")
 
-# CSS para o Botão Azul Forçado
 st.markdown("""
     <style>
     div[data-testid="stFormSubmitButton"] > button {
-        background-color: #0047AB !important;
-        color: white !important;
-        border: none !important;
-        padding: 0.6rem 2.5rem !important;
-        border-radius: 8px !important;
-        font-weight: bold !important;
-        font-size: 16px !important;
+        background-color: #0047AB !important; color: white !important;
+        border: none !important; padding: 0.6rem 2.5rem !important;
+        border-radius: 8px !important; font-weight: bold !important; font-size: 16px !important;
     }
     div[data-testid="stFormSubmitButton"] > button:hover {
-        background-color: #003380 !important;
-        color: white !important;
+        background-color: #003380 !important; color: white !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -198,9 +206,10 @@ if st.session_state.avaliacao_concluida:
     st.success("Avaliação concluída e enviada com sucesso! Muito obrigado(a) pela sua colaboração.")
     st.stop()
 
-# ================= VALIDAÇÃO SILENCIOSA DO TOKEN =================
+# ================= VALIDAÇÃO E CAPTURA DE PARÂMETROS =================
 parametros = st.query_params
 token_url = parametros.get("token", None)
+nome_na_url = parametros.get("nome", "")
 
 if not token_url:
     st.warning("⚠️ Link de acesso inválido. Solicite um novo link à profissional.")
@@ -229,32 +238,31 @@ st.markdown(linha_fina, unsafe_allow_html=True)
 st.markdown("<h3 style='text-align: center;'>Escala ETDAH-Pais</h3>", unsafe_allow_html=True)
 st.markdown(linha_fina, unsafe_allow_html=True)
 
+# IDENTIFICAÇÃO (FORA DO FORM PARA ATUALIZAÇÃO DINÂMICA)
+st.subheader("Dados do(a) Paciente")
+nome_paciente = st.text_input("Nome completo do(a) paciente *", value=nome_na_url)
+data_nascimento = st.date_input("Data de nascimento *", format="DD/MM/YYYY", min_value=datetime.date(1900, 1, 1), max_value=datetime.date.today(), value=None)
+sexo_paciente = st.selectbox("Sexo *", ["Selecione", "Masculino", "Feminino"])
+
+st.subheader("Dados do(a) Respondente")
+nome_resp = st.text_input("Nome completo do(a) respondente *")
+parentesco = st.text_input("Vínculo / Parentesco (Mãe, Pai, Avó, etc.) *")
+
+# Chamada da Marca d'água
+inject_watermark(nome_paciente, token_url)
+
+st.divider()
 st.write("Abaixo estão alguns itens que descrevem comportamentos que o(a) paciente pode apresentar. Considere a frequência atual e nos últimos seis meses.")
 st.markdown(linha_fina, unsafe_allow_html=True)
 
 perguntas = [
-    # FATOR 1 – REGULAÇÃO EMOCIONAL (1-19)
     "Faz amizade, mas não consegue mantê-la", "Implica com tudo", "Tem fortes reações emocionais (explosões de raiva)", "É irritadiço(a) (tudo o incomoda)", "Muda facilmente de humor", "Explode com facilidade (é do tipo “pavio curto”)", "Dá a impressão de estar sempre insatisfeito(a) (nada o(a) agrada)", "É rebelde (não aceita nada)", "É agressivo(a)", "Sente-se infeliz", "Faz birra quando quer algo", "Mostra-se tenso(a) e rígido(a)", "Implica com os irmãos", "As atividades e reuniões são desagradáveis", "Todos têm que fazer o que ele(a) quer", "A hora de acordar e das refeições é desagradável", "Exige mais tempo e atenção dos responsáveis do que outros familiares", "Tem dificuldades para se adaptar às mudanças", "É sensível",
-    # FATOR 2 - HIPERATIVIDADE / IMPULSIVIDADE (20-32)
     "Movimenta-se muito (parece estar ligado(a) com um motor ou a todo vapor)", "É inquieto(a) e agitado(a)", "Mexe-se e contorce-se durante as refeições e para realizar as tarefas de casa", "Tem sempre muita pressa", "Age sem pensar (é impulsivo/a)", "É inconsequente (não considera os perigos da situação)", "Intromete-se em assuntos que não lhe dizem respeito", "Responde antes de ouvir a pergunta inteira", "É imprudente", "Irrita os outros com suas palhaçadas", "Tende a discordar com as regras e normas de jogos", "É persistente e insiste diante de uma ideia", "Faz os deveres escolares rápido demais",
-    # FATOR 3 - COMPORTAMENTO ADAPTATIVO (33-46)
     "Aceita facilmente regras, normas e limites", "Parece ser uma pessoa tranquila e sossegada", "É tolerante, quando preciso", "Respeita normas e regras", "É obediente", "Obedece aos pais/responsáveis e as normas da casa", "Sabe aguardar sua vez (é paciente)", "Faz suas tarefas e almoça com bastante tranquilidade", "Faz as coisas com muito cuidado, prevendo os riscos de suas ações", "Seu comportamento é adequado socialmente", "Fala pouco", "O(a) paciente permite que o ambiente familiar seja tranquilo e harmonioso", "Consegue expressar claramente os seus pensamentos", "É atento(a) quando conversa com alguém",
-    # FATOR 4 - DESATENÇÃO (47-58)
     "É independente para realizar as suas tarefas de casa", "É distraído(a) com quase tudo", "Evita atividades que exigem esforço mental constante (deveres escolares, jogos)", "Esquece rápido o que acabou de ser dito", "Inicia uma atividade com entusiasmo e dificilmente chega ao final", "Tem dificuldade para realizar as coisas importantes (lição, por exemplo)", "Não termina o que começa", "Parece sonhar acordado(a) (estar no mundo da lua)", "Mostra-se concentrado(a) apenas em atividades de seu interesse", "Dá a impressão de que não ouve bem (só escuta o que quer)", "Dificilmente observa detalhes", "Ocorrem discussões entre os responsáveis e o(a) paciente em função da falta de responsabilidade"
 ]
 
 with st.form("form_etdah_pais"):
-    st.subheader("Dados do(a) Paciente")
-    nome_paciente = st.text_input("Nome completo do(a) paciente *")
-    data_nascimento = st.date_input("Data de nascimento *", format="DD/MM/YYYY", min_value=datetime.date(1900, 1, 1), max_value=datetime.date.today(), value=None)
-    sexo_paciente = st.selectbox("Sexo *", ["Selecione", "Masculino", "Feminino"])
-    
-    st.divider()
-    st.subheader("Dados do(a) Respondente")
-    nome_resp = st.text_input("Nome completo do(a) respondente *")
-    parentesco = st.text_input("Vínculo / Parentesco (Mãe, Pai, Avó, etc.) *")
-    st.divider()
-
     respostas_usuario = {}
     for index, texto_pergunta in enumerate(perguntas):
         num_q = index + 1
@@ -277,15 +285,12 @@ with st.form("form_etdah_pais"):
             if faixa_etaria is None:
                 st.error(f"O(a) paciente possui {idade} anos. Escala válida de 2 a 17 anos.")
             else:
-                # Fatores e Cálculo
                 f1_qs = range(1, 20); f2_qs = range(20, 33); f3_qs = range(33, 47); f4_qs = range(47, 59)
                 escores = {"Regulação Emocional": 0, "Hiperatividade/Impulsividade": 0, "Comportamento Adaptativo": 0, "Desatenção": 0, "Escore Geral": 0}
 
                 for n, r in respostas_usuario.items():
                     val = opcoes_respostas[r]
-                    # Inversão Fator 3 e Q47
                     ponto = (7 - val) if (n in f3_qs or n == 47) else val
-                    
                     if n in f1_qs: escores["Regulação Emocional"] += ponto
                     elif n in f2_qs: escores["Hiperatividade/Impulsividade"] += ponto
                     elif n in f3_qs: escores["Comportamento Adaptativo"] += ponto
